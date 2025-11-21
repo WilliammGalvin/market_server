@@ -1,0 +1,34 @@
+#include "launch_args.h"
+#include "csv_reader.h"
+#include "bar_parser.h"
+#include "months.h"
+
+#include <iostream>
+
+int main(int argc, char* argv[]) {
+    auto argsOpt = market_server::LaunchArgs::parse(argc, argv);    
+    if (!argsOpt) {
+        throw std::runtime_error("Could not parse launch arguments.");
+    }
+
+    market_server::LaunchArgs args = *argsOpt;
+    market_server::CSVReader reader{ args.data_path.c_str() };    
+    
+    if (!reader.open_file()) {
+        throw std::runtime_error("Could not find data file.");
+    }
+    
+    // CSV Line = Date, Close/Last, Volume, Open, High, Low
+    while (auto vals = reader.read_csv_line()) {
+        auto bar_opt = market_server::parse_csv_to_bar(*vals);
+        if (!bar_opt) {
+            throw std::runtime_error("Could not parse CSV to bar.");
+        }
+
+        const auto& [date, volume, close, open, high, low] = *bar_opt;
+        std::cout << market_server::date_str_to_str(date.month) << " " << date.day << ", " << date.year << "\n";
+        std::cout << volume << " | $" << open << " $" << close << " $" << high << ", $" << low << "\n\n";
+    }
+
+    return 0;
+}
