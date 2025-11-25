@@ -2,6 +2,7 @@
 #include "csv_reader.h"
 #include "bar_parser.h"
 #include "months.h"
+#include "thread_queue.h"
 
 #include <iostream>
 #include <thread>
@@ -14,20 +15,31 @@ int main(int argc, char* argv[]) {
     }
 
     market_server::LaunchArgs args = *argsOpt;
-    market_server::CSVReader reader{ args.data_path.c_str() };    
+    market_server::ThreadQueue<market_server::Bar> bar_queue;
 
-    if (!reader.open_file()) {
-        throw std::runtime_error("Could not find data file.");
-    }
-    
-    // CSV Line = Date, Close/Last, Volume, Open, High, Low
-    while (auto vals = reader.read_csv_line()) {
-        auto bar_opt = market_server::parse_csv_to_bar(*vals);
-        if (!bar_opt) {
-            throw std::runtime_error("Could not parse CSV to bar.");
+    // Producer thread to read and parse market data
+    std::thread producer([&] {
+        market_server::CSVReader reader{ args.data_path.c_str() };
+
+        if (!reader.open_file()) {
+            throw std::runtime_error("Could not find data file.");
         }
+        
+        // CSV Line = Date, Close/Last, Volume, Open, High, Low
+        while (auto vals = reader.read_csv_line()) {
+            auto bar_opt = market_server::parse_csv_to_bar(*vals);
+            if (!bar_opt) {
+                throw std::runtime_error("Could not parse CSV to bar.");
+            }
 
-        const market_server::Bar& bar = *bar_opt;
+            bar_queue.push(*bar_opt);
+        }
+    });
+
+    // Consumer thread (main) to read data
+    while (true) { 
+        market_server::Bar bar = bar_queue.pop();
+
         std::cout << "Time: " << bar.timestamp << "\n";
         std::cout << bar.volume << " | $" << bar.open << " $" << bar.close << " $" << bar.high << ", $" << bar.low << "\n\n";
 
@@ -36,5 +48,6 @@ int main(int argc, char* argv[]) {
         );
     }
 
+    producer.join();
     return 0;
 }
