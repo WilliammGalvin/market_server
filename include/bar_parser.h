@@ -1,20 +1,19 @@
 #pragma once
 
 #include "bar.h"
-#include "market_date.h"
 
 #include <optional>
 #include <vector>
 #include <string>
-#include <utility>
 #include <string_view>
 #include <charconv>
-
+#include <cstdint>
 #include <iostream>
+#include <chrono>
 
 namespace market_server {
 
-    inline std::optional<MarketDate> parse_market_date(std::string_view data) noexcept {
+    inline std::optional<std::int64_t> parse_market_timestamp(std::string_view data) noexcept {
         std::string parts[3];
         std::size_t idx = 0;
         std::size_t start = 0;
@@ -37,17 +36,47 @@ namespace market_server {
             if (p.empty()) return std::nullopt;
         }
 
-        return MarketDate{
-            parts[0], parts[1], parts[2]
+        int month, day, year;
+        auto to_int = [&](std::string_view s, int& out) {
+            auto res = std::from_chars(s.data(), s.data() + s.size(), out);
+            return res.ec == std::errc{};
         };
+
+        if (!to_int(parts[0], month))
+            return std::nullopt;
+
+        if (!to_int(parts[1], day))
+            return std::nullopt;
+
+        if (!to_int(parts[2], year))
+            return std::nullopt;
+
+        if (month < 1 || month > 12)
+            return std::nullopt;
+
+        if (day < 1 || day > 31)
+            return std::nullopt;
+
+        const std::chrono::year_month_day ymd{
+            std::chrono::year{ year },
+            std::chrono::month{ static_cast<unsigned>(month) },
+            std::chrono::day{ static_cast<unsigned>(day) }
+        };
+
+        if (!ymd.ok())
+            return std::nullopt;
+
+        std::chrono::sys_days days{ ymd }; 
+        auto ts = std::chrono::duration_cast<std::chrono::seconds>(days.time_since_epoch()).count();
+        return static_cast<std::int64_t>(ts);
     };
 
     inline std::optional<Bar> parse_csv_to_bar(std::vector<std::string>& data) noexcept {
         constexpr std::size_t bar_val_count = 5;
         if (data.size() != bar_val_count + 1) return std::nullopt;
 
-        auto date_opt = parse_market_date(data[0]);
-        if (!date_opt) return std::nullopt;
+        auto timestamp_opt = parse_market_timestamp(data[0]);
+        if (!timestamp_opt) return std::nullopt;
 
         double vals[bar_val_count];
         
@@ -66,7 +95,8 @@ namespace market_server {
             vals[i] = value;
         }
 
-        return Bar{ *date_opt, static_cast<int>(vals[1]), vals[0], vals[2], vals[3], vals[4] };
+        auto [close, volume, open, high, low] = vals;
+        return Bar(*timestamp_opt, open, high, low, close, volume);
     }
 
 }

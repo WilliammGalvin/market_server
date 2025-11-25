@@ -27,9 +27,9 @@ int main(int argc, char* argv[]) {
             throw std::runtime_error("Could not parse CSV to bar.");
         }
 
-        const auto& [date, volume, close, open, high, low] = *bar_opt;
-        std::cout << market_server::date_str_to_str(date.month) << " " << date.day << ", " << date.year << "\n";
-        std::cout << volume << " | $" << open << " $" << close << " $" << high << ", $" << low << "\n\n";
+        const market_server::Bar& bar = *bar_opt;
+        std::cout << "Time: " << bar.timestamp << "\n";
+        std::cout << bar.volume << " | $" << bar.open << " $" << bar.close << " $" << bar.high << ", $" << bar.low << "\n\n";
 
         std::this_thread::sleep_for(std::chrono::milliseconds(
             static_cast<std::int64_t>(args.day_length_ms))
