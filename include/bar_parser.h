@@ -82,15 +82,15 @@ namespace market_server {
         
         for (std::size_t i = 0; i < bar_val_count; ++i) {
             std::string_view value_str = data[i + 1];
-            double value = 0;
 
             if (!value_str.empty() && value_str[0] == '$')
                 value_str.remove_prefix(1);
 
-            auto result = std::from_chars(value_str.data(), value_str.data() + value_str.size(), value);
-            if (result.ec != std::errc{}) {
-                return std::nullopt;
-            }
+            char* endptr = nullptr;
+            std::string temp{ value_str };
+
+            double value = std::strtod(temp.c_str(), &endptr);
+            if (endptr == temp.c_str()) return std::nullopt;
             
             vals[i] = value;
         }
