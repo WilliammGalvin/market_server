@@ -3,13 +3,19 @@
 #include "producer.h"
 #include "acceptor.h"
 #include "bar_packet.h"
+#include "order_dispatcher.h"
+#include "client_handler.h"
 
 #include <iostream>
 #include <thread>
 #include <chrono>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/socket.h>
 
-void on_bar_rec(const market_server::Bar& bar, market_server::Acceptor& acceptor) {
+#define MARKET_SERVER_SOCKET 5005
+
+void on_bar_ready(const market_server::Bar& bar, market_server::Acceptor& acceptor) {
     // Console output
     std::cout << "Time: " << bar.timestamp << "\n";
     std::cout << bar.volume << " | $" << bar.open << " $" << bar.close << " $" << bar.high << ", $" << bar.low << "\n\n";
@@ -34,11 +40,16 @@ int main(int argc, char* argv[]) {
 
     market_server::LaunchArgs args = *argsOpt;
     market_server::ThreadQueue<market_server::Bar> bar_queue;
+    market_server::OrderDispatcher order_dispatcher{};
 
     // Acceptor thread to accept incoming client connections
     signal(SIGPIPE, SIG_IGN);
-    market_server::Acceptor acceptor{ 5005 };
+    market_server::Acceptor acceptor{ MARKET_SERVER_SOCKET, order_dispatcher };
     acceptor.start();
+
+    // Order thread to process incoming orders
+    std::thread order_thread(&market_server::OrderDispatcher::processing_loop, &order_dispatcher);
+    order_thread.detach();
 
     // Producer thread to read and parse market data
     market_server::Producer producer{ args, bar_queue };
@@ -47,7 +58,7 @@ int main(int argc, char* argv[]) {
     // Consumer thread (main) to read data
     while (true) { 
         market_server::Bar bar = bar_queue.pop();
-        on_bar_rec(bar, acceptor);
+        on_bar_ready(bar, acceptor);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(
             static_cast<std::int64_t>(args.day_length_ms))

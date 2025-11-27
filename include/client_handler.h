@@ -1,6 +1,7 @@
 #pragma once
 
 #include "order_dispatcher.h"
+#include "order.h"
 
 #include <thread>
 #include <sys/types.h>
@@ -14,18 +15,20 @@ namespace market_server {
         int socket_;
         OrderDispatcher& dispatcher_;
         std::thread thread_;
+        std::atomic<bool> running_{ false };
 
         void run() {
+            running_ = true;
+
             while (true) {
-                char buffer[1024];
-                auto n = recv(socket_, buffer, sizeof(buffer), 0);
+                char buffer[sizeof(WireOrder)];
+                auto n = recv(socket_, buffer, sizeof(buffer), MSG_WAITALL);
 
                 if (n <= 0) {
                     break;
                 }
 
-                std::ptrdiff_t bytes_received = n;
-                auto order = parse_order(buffer, bytes_received);
+                auto order = parse_order(buffer, n);
                 dispatcher_.submit(order);
             }
 
@@ -34,10 +37,21 @@ namespace market_server {
 
     public:
         ClientHandler(int socket, OrderDispatcher& dispatcher)
-            : socket_(socket), dispatcher_(dispatcher) {
+            : socket_(socket), dispatcher_(dispatcher) {}
+        
+        ~ClientHandler() {
+            running_ = false;
+            if (thread_.joinable())
+                thread_.join();
+        }
 
-                thread_ = std::thread(&ClientHandler::run, this);
-            } 
+        void start() {
+            thread_ = std::thread(&ClientHandler::run, this);
+        }
+
+        int socket() const {
+            return socket_;
+        }
     };
 
 }
