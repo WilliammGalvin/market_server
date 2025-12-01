@@ -34,9 +34,9 @@ namespace market_server {
 
                 // TODO: Implement order handling
                 if (order.side == OrderSide::Buy) {
-                    std::cout << "Recieved buy order from client " << order.client_id << ".\n\n";
+                    std::cout << "Recieved buy order from client " << order.client_id << ".\n" << std::endl;
                 } else {
-                    std::cout << "Recieved sell order from client " << order.client_id << ".\n\n";
+                    std::cout << "Recieved sell order from client " << order.client_id << ".\n" << std::endl;
                 }
             }
         }

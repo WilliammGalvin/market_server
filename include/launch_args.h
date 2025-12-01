@@ -13,7 +13,7 @@ namespace market_server {
 
         static std::optional<LaunchArgs> parse(int argc, char* argv[]) {
             if (argc < 3) {
-                std::cerr << "Usage: " << argv[0] << " <data-path> <day_length_ms>\n";
+                std::cerr << "Usage: " << argv[0] << " <data-path> <day_length_ms>" << std::endl;
                 return std::nullopt;
             }
 
@@ -22,7 +22,7 @@ namespace market_server {
 
             std::istringstream ss(argv[2]);
             if (!(ss >> args.day_length_ms)) {
-                std::cerr << "Invalid day_time_ms: " << argv[2] << "\n";
+                std::cerr << "Invalid day_time_ms: " << argv[2] << std::endl;
                 return std::nullopt;
             }
 

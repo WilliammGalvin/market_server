@@ -17,8 +17,8 @@
 
 void on_bar_ready(const market_server::Bar& bar, market_server::Acceptor& acceptor) {
     // Console output
-    std::cout << "Time: " << bar.timestamp << "\n";
-    std::cout << bar.volume << " | $" << bar.open << " $" << bar.close << " $" << bar.high << ", $" << bar.low << "\n\n";
+    std::cout << "Time: " << bar.timestamp << std::endl;
+    std::cout << bar.volume << " | $" << bar.open << " $" << bar.close << " $" << bar.high << ", $" << bar.low << "\n" << std::endl;
 
     // Broadcast
     std::vector<int> clients = acceptor.get_clients();
@@ -33,6 +33,8 @@ void on_bar_ready(const market_server::Bar& bar, market_server::Acceptor& accept
 }
 
 int main(int argc, char* argv[]) {
+    std::cout << "Launching program..." << std::endl;
+
     auto argsOpt = market_server::LaunchArgs::parse(argc, argv);    
     if (!argsOpt) {
         throw std::runtime_error("Could not parse launch arguments.");
