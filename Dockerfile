@@ -6,8 +6,13 @@ WORKDIR /app
 
 COPY . .
 
-RUN mkdir build && cd build && cmake .. && make
+RUN mkdir build
+WORKDIR /app/build
+RUN cmake .. && make
+
+WORKDIR /app
 
 EXPOSE 5000
 
-CMD ["./build/market_server"]
+ENTRYPOINT [ "./build/market_server" ]
+CMD [ "data/AAPL_5Y_history.csv", "3000" ] 
